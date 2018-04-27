@@ -9,7 +9,7 @@ module Sfn
           if value
             {
               parameter_key: key,
-              parameter_value: value
+              parameter_value: value.to_s
             }
           else
             {
