@@ -6,6 +6,7 @@ require 'sfn-changesets/command/create'
 require 'sfn-changesets/command/destroy'
 require 'sfn-changesets/command/list'
 require 'sfn-changesets/command/show'
+require 'sfn-changesets/config/parameter_file'
 
 module Sfn
   class Command
@@ -32,12 +33,14 @@ module Sfn
 
           when 'create'
             current_params = provider.stack(stack_name).parameters
+            load_stack_file(stack_name)
+            # Collect Current Compile Time Parameters then Compile Template
             if config[:file]
               if provider.stack(stack_name).outputs
                 compile_params = provider.stack(stack_name).outputs.detect do |output|
                 output.key == 'CompileState'
+                end
               end
-            end
               if compile_params
                 compile_params = MultiJson.load(compile_params.value)
                 config[:compile_parameters] = compile_params
@@ -48,6 +51,7 @@ module Sfn
               template = provider.stack(stack_name).template
               use_previous = true
             end
+
             populate_parameters!(template, :current_parameters => current_params)
             params = {}
 
