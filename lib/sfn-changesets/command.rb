@@ -46,9 +46,11 @@ module Sfn
                 config[:compile_parameters] = compile_params
               end
               template = load_template_file
+              template_body = parameter_scrub!(template_content(template, :scrub)).to_json
               use_previous = false
             else
               template = provider.stack(stack_name).template
+              template_body = template
               use_previous = true
             end
 
@@ -65,7 +67,6 @@ module Sfn
 
             ui.info "Creating Change Set #{ui.color(set_name, 'gold')} for #{ui.color(root_stack.name, 'gold')}"
 
-            template_body = parameter_scrub!(template_content(template, :scrub)).to_json
             create_set(stack_name, set_name, params, template_body, use_previous)
 
             ui.info "Created Change Set #{ui.color(set_name, 'gold')} for #{ui.color(root_stack.name, 'gold')}"
