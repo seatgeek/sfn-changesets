@@ -3,15 +3,24 @@ require 'sfn'
 module Sfn
   class Command
     class ChangeSet < Command
-      def compose_reason(reason)
+      def parse_source(source, entity, parameters)
+        case source
+        when 'ParameterReference'
+          param = parameters[entity]
+          "Parameter #{entity}: #{param[:current]} -> #{param[:new]}"
+        when 'ResourceReference'
+          "Reference to Resource #{entity}"
+        when 'DirectModification'
+          "Direct Modification of Resource"
+        end
+      end
+
+      def compose_reason(reason, parameters)
         elements = [
           reason['attribute'],
           reason['name'],
           'changed by',
-          reason['evaluation'],
-          'Eval of',
-          reason['source'],
-          reason['entity']
+          parse_source(reason['source'], reason['entity'], parameters),
         ].reject { |ele| ele == '' }
         return elements.join(' ')
       end
@@ -22,6 +31,15 @@ module Sfn
           stack_name: stack,
           change_set_name: set
         )
+        current_params = provider.stack(stack).parameters
+        parameters = {}
+        resp.parameters.each do |param|
+          next if param.use_previous_value
+          parameters[param.parameter_key] = {
+            current: current_params[param.parameter_key],
+            new: param.parameter_value
+          }
+        end
         changes = resp.changes.map do |change|
           {
             'action' => change.resource_change.action,
@@ -47,11 +65,9 @@ module Sfn
         ui.table(self) do
           table(border: false) do
             row(header: true) do
-              cols.each do |attr|
-                width_val = changes.map { |e| e[attr].to_s.length }.push(attr.length).max + 2
-                width_val = width_val > 96 ? 96 : width_val < 8 ? 8 : width_val
-                column attr.split('_').map(&:capitalize).join(' '), :width => width_val
-              end
+              column 'Action', width: 8
+              column 'Resource', width: width_val = changes.map { |e| e['type'].to_s.length }.max + 2
+              column 'Reason(s)', width: 90
             end
             cols.delete('reasons')
             changes.each do |change|
@@ -62,14 +78,14 @@ module Sfn
                 end
                 unless change['reasons'].empty?
                   reason = change['reasons'][0]
-                  column compose_reason(reason)
+                  column compose_reason(reason, parameters)
                 end
               end
               row do
                 column nil
                 column change['type']
                 if change['reasons'].size > 1
-                  column compose_reason(change['reasons'][1])
+                  column compose_reason(change['reasons'][1], parameters)
                 end
               end
               lines.times do |i|
@@ -79,7 +95,7 @@ module Sfn
                     column nil
                   end
                   reason = change['reasons'][i]
-                  column compose_reason(reason)
+                  column compose_reason(reason, parameters)
                 end
               end
               row do
