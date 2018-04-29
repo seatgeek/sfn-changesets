@@ -1,4 +1,5 @@
 require 'sfn'
+require 'hashdiff'
 
 module Sfn
   class Command
@@ -25,12 +26,29 @@ module Sfn
         return elements.join(' ')
       end
 
+      def resource_diffs(changes, stack, set)
+        client = cfn_client
+        stack_template = provider.stack(stack).template.to_hash
+        change_set_template = JSON.parse(client.get_template(
+          stack_name: stack,
+          change_set_name: set
+        ).template_body)
+
+        diffs = {}
+        changes.each do |change|
+          resource = change['resource']
+          diffs[resource] = HashDiff.diff(stack_template['Resources'][resource], change_set_template['Resources'][resource])
+        end
+        return diffs
+      end
+
       def show_set(stack, set)
         client = cfn_client
         resp = client.describe_change_set(
           stack_name: stack,
           change_set_name: set
         )
+
         current_params = provider.stack(stack).parameters
         parameters = {}
         resp.parameters.each do |param|
@@ -56,6 +74,7 @@ module Sfn
             end
           }
         end
+        diffs = resource_diffs(changes, stack, set)
         changes.sort_by! { |change| change['action'] }
         cols = %w(action resource reasons)
         ui.info "Created: #{resp.creation_time}"
@@ -96,6 +115,24 @@ module Sfn
                   end
                   reason = change['reasons'][i]
                   column compose_reason(reason, parameters)
+                end
+              end
+              if diffs[change['resource']][0]
+                row do
+                  diff = diffs[change['resource']]
+                  if diff[0]
+                    case diff[0][0]
+                    when '+'
+                      color = :green
+                    when '~'
+                      color = 'gold'
+                    when '-'
+                      color = :red
+                    end
+                  end
+                  column nil
+                  column 'Diff'
+                  column ui.color(diffs[change['resource']][0].join(' '), color) if diff[0]
                 end
               end
               row do
