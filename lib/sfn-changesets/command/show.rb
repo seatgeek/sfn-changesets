@@ -132,7 +132,7 @@ module Sfn
                   end
                   column nil
                   column 'Diff'
-                  column ui.color(diffs[change['resource']][0].join(' '), color) if diff[0]
+                  column ui.color(diffs[change['resource']][0].map { |o| o.is_a?(Hash) ? o.to_json : o }.join(' '), color) if diff[0]
                 end
               end
               row do
