@@ -68,8 +68,12 @@ module Sfn
             ui.info "Creating Change Set #{ui.color(set_name, 'gold')} for #{ui.color(root_stack.name, 'gold')}"
 
             create_set(stack_name, set_name, params, template_body, use_previous)
-
-            ui.info "Created Change Set #{ui.color(set_name, 'gold')} for #{ui.color(root_stack.name, 'gold')}"
+            if set_failed_no_change?(stack_name, set_name)
+              ui.warn "No Changes Detected. Change Set #{ui.color(set_name, 'gold')} could not be created for #{ui.color(root_stack.name, 'gold')}"
+              destroy_set(stack_name, set_name)
+            else
+              ui.info "Created Change Set #{ui.color(set_name, 'gold')} for #{ui.color(root_stack.name, 'gold')}"
+            end
 
           when 'list'
             ui.info "Listing Change Sets from stack #{ui.color(root_stack.name, 'gold')}"

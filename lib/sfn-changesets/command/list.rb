@@ -7,6 +7,17 @@ module Sfn
       def debug
         puts 'DEBUG'
       end
+      def set_failed_no_change?(stack,set)
+        client = cfn_client
+        resp = client.list_change_sets(stack_name: stack)
+        sets = resp.summaries
+        current_set = sets.select { |s| s.change_set_name == set }
+        if current_set[0].status == 'FAILED' && current_set[0].status_reason == "The submitted information didn't contain changes. Submit different information to create a change set."
+          return true
+        else
+          return false
+        end
+      end
       def list_sets(stack)
         client = cfn_client
         resp = client.list_change_sets(stack_name: stack)
@@ -17,6 +28,7 @@ module Sfn
               'change_set_name' => set.change_set_name,
               'creation_time' => set.creation_time,
               'status' => set.status,
+              'reason' => set.status_reason,
               'execution_status' => set.execution_status
             }
           end
