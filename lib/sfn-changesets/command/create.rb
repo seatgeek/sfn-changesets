@@ -32,7 +32,7 @@ module Sfn
             template_url = ::Aws::S3::Client.new(client.put_object({
               body: template_body, 
               bucket: config[:nesting_bucket],
-              key: join!(config[:nesting_prefix], '/', "#{stack_name}", '_', "#{changeset}", '.json'}))
+              key: join!(config[:nesting_prefix], '/', "#{stack_name}", '_', "#{changeset}", '.json'))
 
             resp = client.create_change_set(
               stack_name: stack,
