@@ -29,13 +29,16 @@ module Sfn
           )
         else
           if config[:upload_root_template]
-            template_url = ::Aws::S3::Resource.new(region: 'us-east-1').bucket(bucket).object(template_body)
-            template_url.upload_file()
+            template_url = ::Aws::S3::Client.new(client.put_object({
+              body: template_body, 
+              bucket: config[:nesting_bucket],
+              key: join!(config[:nesting_prefix], '/', "#{stack_name}", '_', "#{changeset}", '.json'}))
+
             resp = client.create_change_set(
               stack_name: stack,
               change_set_name: set,
               parameters: params,
-              template_url: template_url,
+              template_url: join!("s3.amazonaws.com/", config[:nesting_bucket], "/", config[:nesting_prefix], "/", "#{stack_name}", "_", "#{changeset}", ".json"),
               capabilities: config[:options][:capabilities]
             )
           else
