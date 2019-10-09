@@ -39,7 +39,7 @@ module Sfn
               stack_name: stack,
               change_set_name: set,
               parameters: params,
-              template_url: "http://s3.amazonaws.com/#{config[:nesting_bucket]}/#{config[:nesting_prefix]}/#{stack}_#{set}.json",
+              template_url: "https://s3.amazonaws.com/#{config[:nesting_bucket]}/#{config[:nesting_prefix]}/#{stack}_#{set}.json",
               capabilities: config[:options][:capabilities]
             )
           else
