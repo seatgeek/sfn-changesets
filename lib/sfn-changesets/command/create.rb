@@ -29,10 +29,11 @@ module Sfn
         else
           if config[:upload_root_template]
             upload_s3 = Aws::S3::Client.new()
-            upload_s3.put_object({
+            upload_s3.put_object(
               body: template_body, 
               bucket: config[:nesting_bucket],
-              key: "#{config[:nesting_prefix]}/#{stack}_#{set}.json"})
+              key: "#{config[:nesting_prefix]}/#{stack}_#{set}.json"
+            )
 
             resp = client.create_change_set(
               stack_name: stack,
