@@ -27,13 +27,30 @@ module Sfn
             capabilities: config[:options][:capabilities]
           )
         else
-          resp = client.create_change_set(
-            stack_name: stack,
-            change_set_name: set,
-            parameters: params,
-            template_body: template_body,
-            capabilities: config[:options][:capabilities]
-          )
+          if config[:upload_root_template]
+            upload_s3 = Aws::S3::Client.new()
+            upload_s3.put_object(
+              body: template_body, 
+              bucket: config[:nesting_bucket],
+              key: "#{config[:nesting_prefix]}/#{stack}_#{set}.json"
+            )
+
+            resp = client.create_change_set(
+              stack_name: stack,
+              change_set_name: set,
+              parameters: params,
+              template_url: "https://s3.amazonaws.com/#{config[:nesting_bucket]}/#{config[:nesting_prefix]}/#{stack}_#{set}.json",
+              capabilities: config[:options][:capabilities]
+            )
+          else
+            resp = client.create_change_set(
+              stack_name: stack,
+              change_set_name: set,
+              parameters: params,
+              template_body: template_body,
+              capabilities: config[:options][:capabilities]
+            )
+          end
         end
         return
       end
