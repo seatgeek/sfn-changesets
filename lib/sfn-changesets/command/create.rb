@@ -5,7 +5,6 @@ module Sfn
     class ChangeSet < Command
       def create_set(stack, set, parameters=[], template_body, use_previous)
         client = cfn_client
-        bucket = sgchef
         params = parameters.map do |key,value|
           if value
             {
@@ -29,16 +28,17 @@ module Sfn
           )
         else
           if config[:upload_root_template]
-            template_url = ::Aws::S3::Client.new(client.put_object({
+            upload_s3 = Aws::S3::Client.new()
+            upload_s3.put_object({
               body: template_body, 
               bucket: config[:nesting_bucket],
-              key: join!(config[:nesting_prefix], '/', "#{stack_name}", '_', "#{changeset}", '.json'))
+              key: "#{config[:nesting_prefix]}/#{stack}_#{set}.json"})
 
             resp = client.create_change_set(
               stack_name: stack,
               change_set_name: set,
               parameters: params,
-              template_url: join!("s3.amazonaws.com/", config[:nesting_bucket], "/", config[:nesting_prefix], "/", "#{stack_name}", "_", "#{changeset}", ".json"),
+              template_url: "http://s3.amazonaws.com/#{config[:nesting_bucket]}/#{config[:nesting_prefix]}/#{stack}_#{set}.json",
               capabilities: config[:options][:capabilities]
             )
           else
