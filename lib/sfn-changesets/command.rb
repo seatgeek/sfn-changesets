@@ -27,18 +27,32 @@ module Sfn
             raise ArgumentError, "#{sub_command} requires a set name argument: sfn changeset #{sub_command} <stack> <set>"
           end
         end
-        root_stack = stack(stack_name)
+        begin
+          root_stack = stack(stack_name)
+          if root_stack.complete?
+            update = true
+          else
+            update = false
+          end
+        rescue Miasma::Error::ApiError::RequestError
+          update = false
+        end
+
         api_action!(api_stack: root_stack) do
           case sub_command
 
           when 'create'
-            current_params = provider.stack(stack_name).parameters
-            load_stack_file(stack_name)
+            if update
+              current_params = provider.stack(stack_name).parameters
+              load_stack_file(stack_name)
+            end
             # Collect Current Compile Time Parameters then Compile Template
             if config[:file]
-              if provider.stack(stack_name).outputs
-                compile_params = provider.stack(stack_name).outputs.detect do |output|
-                output.key == 'CompileState'
+              if update
+                if provider.stack(stack_name).outputs
+                  compile_params = provider.stack(stack_name).outputs.detect do |output|
+                    output.key == 'CompileState'
+                  end
                 end
               end
               if compile_params
@@ -49,25 +63,53 @@ module Sfn
               template_body = parameter_scrub!(template_content(template, :scrub)).to_json
               use_previous = false
             else
-              template = provider.stack(stack_name).template
-              template_body = template
-              use_previous = true
+              if update
+                template = provider.root_stack.template
+                template_body = template
+                use_previous = true
+              else
+                template = load_template_file
+                template_body = parameter_scrub!(template_content(template, :scrub)).to_json
+              end
             end
 
-            populate_parameters!(template, :current_parameters => current_params)
+            unless update
+              root_stack = provider.connection.stacks.build(
+                config.fetch(:options, Smash.new).dup.merge(
+                  :name => stack_name,
+                  :template => template_content(template),
+                  :parameters => Smash.new,
+                )
+              )
+            end
+
+            apply_stacks!(root_stack)
+
+            if current_params
+              default_params = root_stack.parameters.merge(current_params)
+            else
+              default_params = root_stack.parameters
+            end
+
+            populate_parameters!(template, :current_parameters => default_params)
+
             params = {}
 
-            config_root_parameters.each do |key,value|
-              if value == current_params[key]
-                params[key] = false
-              else
-                params[key] = value
+            if current_params
+              config_root_parameters.each do |key,value|
+                if value == current_params[key]
+                  params[key] = false
+                else
+                  params[key] = value
+                end
               end
+            else
+              params = config_root_parameters
             end
 
             ui.info "Creating Change Set #{ui.color(set_name, 'gold')} for #{ui.color(root_stack.name, 'gold')}"
 
-            create_set(stack_name, set_name, params, template_body, use_previous)
+            create_set(stack_name, set_name, params, template_body, use_previous, update ? 'UPDATE' : 'CREATE')
             if set_failed_no_change?(stack_name, set_name)
               ui.warn "No Changes Detected. Change Set #{ui.color(set_name, 'gold')} could not be created for #{ui.color(root_stack.name, 'gold')}"
               destroy_set(stack_name, set_name)
