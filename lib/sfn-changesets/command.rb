@@ -64,7 +64,7 @@ module Sfn
               use_previous = false
             else
               if update
-                template = provider.root_stack.template
+                template = provider.stack(stack_name).template
                 template_body = template
                 use_previous = true
               else
