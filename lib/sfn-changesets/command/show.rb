@@ -36,6 +36,9 @@ module Sfn
 
         diffs = {}
         changes.each do |change|
+          if stack_template == {}
+            stack_template = { 'Resources' => {} }
+          end
           resource = change['resource']
           diffs[resource] = HashDiff.diff(stack_template['Resources'][resource], change_set_template['Resources'][resource])
         end
