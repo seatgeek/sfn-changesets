@@ -12,6 +12,8 @@ def load_stack_file(stack_name)
     config[:file] = stack_file[:template]
     config[:apply_stacks] = stack_file[:apply_stacks] || []
     config[:apply_mapping] ||= Smash.new
-    config[:options][:tags] ||= Smash.new
+    stack_file.fetch(:tags, {}).each do |key, value|
+      config[:options].set(:tags, key, value)
+    end
   end
 end

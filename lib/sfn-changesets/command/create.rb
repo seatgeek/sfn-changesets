@@ -18,6 +18,12 @@ module Sfn
             }
           end
         end
+        tags = config[:options][:tags].map do |key,value|
+          {
+            key: key,
+            value: value.to_s
+          }
+        end
         if use_previous
           resp = client.create_change_set(
             stack_name: stack,
@@ -25,7 +31,8 @@ module Sfn
             parameters: params,
             use_previous_template: true,
             capabilities: config[:options][:capabilities],
-            change_set_type: "UPDATE"
+            change_set_type: "UPDATE",
+            tags: tags
           )
         else
           if config[:upload_root_template]
@@ -42,7 +49,8 @@ module Sfn
               parameters: params,
               template_url: "https://s3.amazonaws.com/#{config[:nesting_bucket]}/#{config[:nesting_prefix]}/#{stack}_#{set}.json",
               capabilities: config[:options][:capabilities],
-              change_set_type: type
+              change_set_type: type,
+              tags: tags
             )
           else
             resp = client.create_change_set(
@@ -51,7 +59,8 @@ module Sfn
               parameters: params,
               template_body: template_body,
               capabilities: config[:options][:capabilities],
-              change_set_type: type
+              change_set_type: type,
+              tags: tags
             )
           end
         end
